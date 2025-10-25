@@ -507,6 +507,85 @@ end
 
 -- ====== ESP PLAYER ======
    
+-- ====== ESP PLAYER (Highlights all players) ======
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local savedConfigs = {} -- your saved config table
+local HttpService = game:GetService("HttpService")
+local screenGui = Instance.new("ScreenGui") -- your main GUI
+screenGui.Name = "OverSeasHubESPPlayer"
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Create Ocean-Styled Button
+local espPlayerButton = Instance.new("TextButton")
+espPlayerButton.Size = UDim2.new(0, 160, 0, 28)
+espPlayerButton.Position = UDim2.new(0, 10, 0, 10)
+espPlayerButton.BackgroundColor3 = Color3.fromRGB(60, 120, 200) -- ocean blue
+espPlayerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+espPlayerButton.Font = Enum.Font.Arcade
+espPlayerButton.TextSize = 16
+espPlayerButton.Text = "ESP Player"
+espPlayerButton.AutoButtonColor = false
+espPlayerButton.Parent = screenGui
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = espPlayerButton
+
+-- ESP Player Logic
+local ESPPlayer = {
+    enabled = savedConfigs["ESP Player"] or false,
+    highlights = {}
+}
+
+local function saveConfig(name, state)
+    savedConfigs[name] = state
+    if writefile then
+        writefile("OverSeasHubConfig", HttpService:JSONEncode(savedConfigs))
+    end
+end
+
+local function toggleESPPlayer(state)
+    ESPPlayer.enabled = state
+    saveConfig("ESP Player", state)
+    espPlayerButton.BackgroundColor3 = state and Color3.fromRGB(0,170,255) or Color3.fromRGB(60, 120, 200) -- ocean style
+
+    task.spawn(function()
+        while ESPPlayer.enabled do
+            -- Cleanup previous highlights
+            for _, hl in pairs(ESPPlayer.highlights) do
+                if hl then hl:Destroy() end
+            end
+            ESPPlayer.highlights = {}
+
+            for _, plr in pairs(Players:GetPlayers()) do
+                if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                    local highlight = Instance.new("Highlight")
+                    highlight.FillColor = Color3.fromRGB(0, 170, 255)  -- ocean fill
+                    highlight.OutlineColor = Color3.fromRGB(0, 255, 255) -- bright ocean outline
+                    highlight.Parent = plr.Character
+                    table.insert(ESPPlayer.highlights, highlight)
+                end
+            end
+
+            task.wait(0.5)
+        end
+
+        -- Cleanup when disabled
+        for _, hl in pairs(ESPPlayer.highlights) do
+            if hl then hl:Destroy() end
+        end
+        ESPPlayer.highlights = {}
+    end)
+end
+
+espPlayerButton.MouseButton1Click:Connect(function()
+    toggleESPPlayer(not ESPPlayer.enabled)
+end)
+
+-- Enable on load if saved
+if ESPPlayer.enabled then
+    toggleESPPlayer(true)
+end
 
 -- ====== DISCORD BUTTON ======
 discordButton.BackgroundColor3 = Color3.fromRGB(88,101,242)
