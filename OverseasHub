@@ -1,0 +1,515 @@
+-- Full OverSeas Hub Script with all logic, buttons, ESP Best, ESP Player, Base X-Ray, Desync, Speed Booster, and Discord link
+-- ====== SERVICES ======
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- ====== CONFIG SAVE TABLE ======
+local canBeSavedConfigs = {} -- only buttons added here are saved
+local savedConfigFileName = "OverSeasHubConfig"
+
+-- Load saved configs if available
+local savedConfigs = {}
+pcall(function()
+    local content = readfile and readfile(savedConfigFileName)
+    if content then
+        savedConfigs = HttpService:JSONDecode(content)
+    end
+end)
+
+local function saveConfig(name, state)
+    savedConfigs[name] = state
+    if writefile then
+        writefile(savedConfigFileName, HttpService:JSONEncode(savedConfigs))
+    end
+end
+
+-- ====== SCREEN GUI ======
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "OverSeasHub"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- ====== TOGGLE BUTTON ======
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 60, 0, 60)
+toggleButton.Position = UDim2.new(0, 20, 0.5, -30)
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
+toggleButton.BackgroundTransparency = 0.3
+toggleButton.Text = "OverSeas"
+toggleButton.Font = Enum.Font.Arcade
+toggleButton.TextSize = 16
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.Active = true
+toggleButton.Draggable = true
+toggleButton.Parent = screenGui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(1, 0)
+uiCorner.Parent = toggleButton
+
+-- ====== MAIN FRAME ======
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 180, 0, 200)
+mainFrame.Position = UDim2.new(0.5, -90, 0.5, -100)
+mainFrame.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
+mainFrame.BackgroundTransparency = 0.3
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 12)
+frameCorner.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 25)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "OverSeas Hub"
+titleLabel.Font = Enum.Font.Arcade
+titleLabel.TextSize = 16
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Parent = mainFrame
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 5)
+layout.FillDirection = Enum.FillDirection.Vertical
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+layout.VerticalAlignment = Enum.VerticalAlignment.Top
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = mainFrame
+
+layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    mainFrame.Size = UDim2.new(0, mainFrame.Size.X.Offset, 0, layout.AbsoluteContentSize.Y + 15)
+end)
+
+-- ====== BUTTON CREATOR ======
+local function createButton(name, saveable)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 160, 0, 28)
+    button.Text = name
+    button.Font = Enum.Font.Arcade
+    button.TextSize = 16
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    button.AutoButtonColor = false
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0,8)
+    corner.Parent = button
+    button.Parent = mainFrame
+
+    if saveable then
+        canBeSavedConfigs[name] = button
+    end
+    return button
+end
+
+-- ====== BUTTONS ======
+local desyncButton = createButton("Desync", false)
+local speedButton = createButton("Speed Booster", false)
+local baseXrayButton = createButton("Base X-Ray", true)
+local espBestButton = createButton("ESP Best", true)
+local espPlayerButton = createButton("ESP Player", true)
+local discordButton = createButton("Discord", false) -- always at bottom
+
+-- ====== UI TOGGLE ======
+local uiVisible = false
+toggleButton.MouseButton1Click:Connect(function()
+    uiVisible = not uiVisible
+    mainFrame.Visible = uiVisible
+end)
+
+-- ====== DESYNC LOGIC ====== 
+-- ====== DESYNC LOGIC ======
+local desyncActive = false
+local useItemRemote, teleportRemote
+
+local function enableDesync()
+    local success, err = pcall(function()
+        local backpack = game.Players.LocalPlayer:WaitForChild("Backpack")
+        local char = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
+        local hum = char:WaitForChild("Humanoid")
+
+        local packages = game.ReplicatedStorage:WaitForChild("Packages",5)
+        local netFolder = packages:WaitForChild("Net",5)
+        useItemRemote = netFolder:WaitForChild("RE/UseItem",5)
+        teleportRemote = netFolder:WaitForChild("RE/QuantumCloner/OnTeleport",5)
+
+        local tool = backpack:FindFirstChild("Quantum Cloner") or char:FindFirstChild("Quantum Cloner")
+        if tool then hum:EquipTool(tool) task.wait(0.1) end
+
+        if setfflag then setfflag("WorldStepMax","-9999999999") end
+        task.wait(0.1)
+        useItemRemote:FireServer()
+        task.wait(0.1)
+        teleportRemote:FireServer()
+        task.wait(0.1)
+        if setfflag then setfflag("WorldStepMax","-1") end
+        print("✅ Desync Activated!")
+    end)
+    if not success then warn("❌ Desync error:", err) end
+end
+
+-- Button toggle example (attach to UI button)
+local desyncButton = Instance.new("TextButton") -- assume exists in UI
+desyncButton.MouseButton1Click:Connect(function()
+    desyncActive = not desyncActive
+    if desyncActive then
+        enableDesync()
+        desyncButton.BackgroundColor3 = Color3.fromRGB(200,200,0)
+    else
+        desyncButton.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    end
+end)
+
+-- Reset desync on death
+game.Players.LocalPlayer.CharacterAdded:Connect(function()
+    desyncActive = false
+    desyncButton.BackgroundColor3 = Color3.fromRGB(100,100,100)
+end)
+
+-- ====== SPEED BOOSTER ======
+   -- ====== SPEED BOOSTER ======
+local speedActive = false
+local speedConn
+local baseSpeed = 30 -- speed multiplier
+
+local function startSpeed()
+    if speedConn then return end
+    speedConn = game:GetService("RunService").Heartbeat:Connect(function()
+        local char = game.Players.LocalPlayer.Character
+        if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hrp or not hum then return end
+        local move = hum.MoveDirection
+        if move.Magnitude > 0 then
+            hrp.AssemblyLinearVelocity = Vector3.new(move.X * baseSpeed, hrp.AssemblyLinearVelocity.Y, move.Z * baseSpeed)
+        else
+            hrp.AssemblyLinearVelocity = Vector3.new(0, hrp.AssemblyLinearVelocity.Y, 0)
+        end
+    end)
+end
+
+local function stopSpeed()
+    if speedConn then speedConn:Disconnect() speedConn = nil end
+    local char = game.Players.LocalPlayer.Character
+    if char then
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then hrp.AssemblyLinearVelocity = Vector3.new(0, hrp.AssemblyLinearVelocity.Y, 0) end
+    end
+end
+
+-- Button toggle example (attach to UI button)
+local speedButton = Instance.new("TextButton") -- assume exists in UI
+speedButton.MouseButton1Click:Connect(function()
+    speedActive = not speedActive
+    if speedActive then
+        startSpeed()
+        speedButton.BackgroundColor3 = Color3.fromRGB(0,170,0)
+    else
+        stopSpeed()
+        speedButton.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    end
+end)
+
+-- ====== BASE X-RAY ======
+   
+  -- ====== BASE X-RAY ======
+local LocalPlayer = game.Players.LocalPlayer
+local baseXrayActive = false -- default off
+local baseXrayButton = Instance.new("TextButton") -- assume exists in UI
+local savedConfigs = {} -- your saved config table
+local HttpService = game:GetService("HttpService")
+
+-- Save helper
+local function saveConfig(name, state)
+    savedConfigs[name] = state
+    if writefile then
+        writefile("OverSeasHubConfig", HttpService:JSONEncode(savedConfigs))
+    end
+end
+
+local function toggleBaseXray(state)
+    baseXrayActive = state
+    saveConfig("Base X-Ray", state)
+    baseXrayButton.BackgroundColor3 = state and Color3.fromRGB(0,170,0) or Color3.fromRGB(100,100,100)
+
+    task.spawn(function()
+        while baseXrayActive do
+            for _, plot in pairs(workspace:FindFirstChild("Plots") and workspace.Plots:GetChildren() or {}) do
+                for _, part in pairs(plot:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.Transparency = 0.5
+                        part.CanCollide = false
+                    end
+                end
+            end
+            task.wait(0.5)
+        end
+        -- Reset parts if needed when disabled
+        for _, plot in pairs(workspace:FindFirstChild("Plots") and workspace.Plots:GetChildren() or {}) do
+            for _, part in pairs(plot:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Transparency = 0
+                    part.CanCollide = true
+                end
+            end
+        end
+    end)
+end
+
+-- Button toggle
+baseXrayButton.MouseButton1Click:Connect(function()
+    toggleBaseXray(not baseXrayActive)
+end)
+
+-- Load saved config if exists
+if savedConfigs["Base X-Ray"] then
+    toggleBaseXray(true)
+end
+
+-- ====== ESP BEST ======
+   -- ====== ESP BEST (Single Top Animal) ======
+local LocalPlayer = game.Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local savedConfigs = {} -- your saved config table
+local HttpService = game:GetService("HttpService")
+local espBestButton = Instance.new("TextButton") -- assume exists in your UI
+
+local ESPBest = {
+    enabled = savedConfigs["ESP Best"] or false,
+    lastHighlight = nil,
+    lastBillboard = nil,
+    CHECK_DELAY = 0.25
+}
+
+-- Mutation color mapping
+local MUTATION_COLORS = {
+    Candy = Color3.fromRGB(255, 105, 180), -- Pink
+    Diamond = Color3.fromRGB(0, 191, 255), -- Blue
+    Gold = Color3.fromRGB(255, 215, 0), -- Yellow
+    Bloodrot = Color3.fromRGB(178, 34, 34), -- Red
+    Lava = Color3.fromRGB(255, 69, 0), -- Lava Red
+    Yinyang = Color3.fromRGB(255, 255, 255) -- White (will be handled specially)
+}
+
+local function getBestAnimalGlobal()
+    local plotController = require(ReplicatedStorage.Controllers.PlotController)
+    local sharedAnimals = require(ReplicatedStorage.Shared.Animals)
+    local bestAnimal = nil
+    local bestScore = -math.huge
+
+    for _, plot in pairs(plotController:GetAllPlots()) do
+        for idx, animal in pairs(plot:GetAnimals()) do
+            if animal and animal.Steal ~= false then
+                local price = sharedAnimals:GetPrice(animal.Index)
+                local gen = sharedAnimals:GetGeneration(animal.Index, animal.Mutation, animal.Traits, nil)
+                local score = (price or 0) + (gen or 0)
+                if score > bestScore then
+                    bestScore = score
+                    bestAnimal = {
+                        plotUID = plot.UID, 
+                        index = idx, 
+                        model = workspace.Plots[plot.UID].AnimalPodiums[idx],
+                        animalData = animal,
+                        generation = gen or 0
+                    }
+                end
+            end
+        end
+    end
+    return bestAnimal
+end
+
+local function createYinyangLabel(parent)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 0, 20)
+    frame.BackgroundTransparency = 1
+    frame.Parent = parent
+    
+    -- Left half (white)
+    local leftLabel = Instance.new("TextLabel")
+    leftLabel.Size = UDim2.new(0.5, 0, 1, 0)
+    leftLabel.Position = UDim2.new(0, 0, 0, 0)
+    leftLabel.BackgroundTransparency = 1
+    leftLabel.Text = "Yin"
+    leftLabel.TextColor3 = Color3.new(0, 0, 0) -- Black text on white background
+    leftLabel.BackgroundColor3 = Color3.new(1, 1, 1) -- White background
+    leftLabel.TextScaled = true
+    leftLabel.Font = Enum.Font.GothamBold
+    leftLabel.Parent = frame
+    
+    -- Right half (black)
+    local rightLabel = Instance.new("TextLabel")
+    rightLabel.Size = UDim2.new(0.5, 0, 1, 0)
+    rightLabel.Position = UDim2.new(0.5, 0, 0, 0)
+    rightLabel.BackgroundTransparency = 1
+    rightLabel.Text = "Yang"
+    rightLabel.TextColor3 = Color3.new(1, 1, 1) -- White text on black background
+    rightLabel.BackgroundColor3 = Color3.new(0, 0, 0) -- Black background
+    rightLabel.TextScaled = true
+    rightLabel.Font = Enum.Font.GothamBold
+    rightLabel.Parent = frame
+    
+    return frame
+end
+
+local function createCustomBillboard(animalData, animalModel)
+    if not animalData or not animalModel then return nil end
+    
+    local billboardGui = Instance.new("BillboardGui")
+    billboardGui.Name = "ESPBestBillboard"
+    billboardGui.AlwaysOnTop = true
+    billboardGui.Size = UDim2.new(0, 200, 0, 80)
+    billboardGui.StudsOffset = Vector3.new(0, 4, 0)
+    billboardGui.Adornee = animalModel
+    billboardGui.MaxDistance = 100
+    billboardGui.Parent = animalModel
+    
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Size = UDim2.new(1, 0, 1, 0)
+    mainFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+    mainFrame.BackgroundTransparency = 0.3
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Parent = billboardGui
+    
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(0, 8)
+    uiCorner.Parent = mainFrame
+    
+    -- Mutation Label (TOP)
+    local mutationLabel
+    if animalData.Mutation == "Yinyang" then
+        mutationLabel = createYinyangLabel(mainFrame)
+        mutationLabel.Position = UDim2.new(0, 0, 0, 0)
+    else
+        mutationLabel = Instance.new("TextLabel")
+        mutationLabel.Size = UDim2.new(1, 0, 0, 20)
+        mutationLabel.Position = UDim2.new(0, 0, 0, 0)
+        mutationLabel.BackgroundTransparency = 1
+        mutationLabel.Text = animalData.Mutation or "No Mutation"
+        mutationLabel.TextColor3 = MUTATION_COLORS[animalData.Mutation] or Color3.new(1, 1, 1)
+        mutationLabel.TextScaled = true
+        mutationLabel.Font = Enum.Font.GothamBold
+        mutationLabel.Parent = mainFrame
+        
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = Color3.new(0, 0, 0)
+        stroke.Thickness = 2
+        stroke.Parent = mutationLabel
+    end
+    
+    -- Name Label (MIDDLE)
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(1, 0, 0, 25)
+    nameLabel.Position = UDim2.new(0, 0, 0, 20)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = tostring(animalData.Index or "Unknown")
+    nameLabel.TextColor3 = Color3.new(1, 1, 1) -- White
+    nameLabel.TextScaled = true
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.Parent = mainFrame
+    
+    local nameStroke = Instance.new("UIStroke")
+    nameStroke.Color = Color3.new(0, 0, 0) -- Black stroke
+    nameStroke.Thickness = 2
+    nameStroke.Parent = nameLabel
+    
+    -- Generation Label (BOTTOM)
+    local genLabel = Instance.new("TextLabel")
+    genLabel.Size = UDim2.new(1, 0, 0, 20)
+    genLabel.Position = UDim2.new(0, 0, 0, 45)
+    genLabel.BackgroundTransparency = 1
+    genLabel.Text = "Gen: " .. tostring(animalData.generation or 0)
+    genLabel.TextColor3 = Color3.fromRGB(0, 255, 0) -- Green
+    genLabel.TextScaled = true
+    genLabel.Font = Enum.Font.GothamBold
+    genLabel.Parent = mainFrame
+    
+    local genStroke = Instance.new("UIStroke")
+    genStroke.Color = Color3.new(0, 0, 0) -- Black stroke
+    genStroke.Thickness = 2
+    genStroke.Parent = genLabel
+    
+    return billboardGui
+end
+
+local function saveConfig(name, state)
+    savedConfigs[name] = state
+    if writefile then
+        writefile("OverSeasHubConfig", HttpService:JSONEncode(savedConfigs))
+    end
+end
+
+local function toggleESPBest(state)
+    ESPBest.enabled = state
+    saveConfig("ESP Best", state)
+    espBestButton.BackgroundColor3 = state and Color3.fromRGB(0,170,0) or Color3.fromRGB(100,100,100)
+
+    task.spawn(function()
+        while ESPBest.enabled do
+            -- Clean up previous ESP elements
+            if ESPBest.lastHighlight then
+                ESPBest.lastHighlight:Destroy()
+                ESPBest.lastHighlight = nil
+            end
+            if ESPBest.lastBillboard then
+                ESPBest.lastBillboard:Destroy()
+                ESPBest.lastBillboard = nil
+            end
+
+            -- Find best animal
+            local bestAnimal = getBestAnimalGlobal()
+            if bestAnimal and bestAnimal.model then
+                -- Create highlight
+                local highlight = Instance.new("Highlight")
+                highlight.FillColor = Color3.fromRGB(0,255,0)
+                highlight.OutlineColor = Color3.fromRGB(0,255,0)
+                highlight.Parent = bestAnimal.model
+                ESPBest.lastHighlight = highlight
+                
+                -- Create custom billboard GUI
+                local billboard = createCustomBillboard(bestAnimal.animalData, bestAnimal.model)
+                if billboard then
+                    ESPBest.lastBillboard = billboard
+                end
+            end
+
+            task.wait(ESPBest.CHECK_DELAY)
+        end
+
+        -- Clean up when disabled
+        if ESPBest.lastHighlight then
+            ESPBest.lastHighlight:Destroy()
+            ESPBest.lastHighlight = nil
+        end
+        if ESPBest.lastBillboard then
+            ESPBest.lastBillboard:Destroy()
+            ESPBest.lastBillboard = nil
+        end
+    end)
+end
+
+espBestButton.MouseButton1Click:Connect(function()
+    toggleESPBest(not ESPBest.enabled)
+end)
+
+-- Enable on load if saved
+if ESPBest.enabled then
+    toggleESPBest(true)
+end
+
+-- ====== ESP PLAYER ======
+   
+
+-- ====== DISCORD BUTTON ======
+discordButton.BackgroundColor3 = Color3.fromRGB(88,101,242)
+discordButton.MouseButton1Click:Connect(function()
+    if setclipboard then setclipboard("https://discord.gg/ZjaV6GPMnP") end
+end)
